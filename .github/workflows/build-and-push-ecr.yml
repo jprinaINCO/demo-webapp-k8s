@@ -70,7 +70,9 @@ jobs:
           echo "Actualizando image tag en k8s/deployment.yaml a: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
           # Reemplaza la línea que empieza con 'image:' por la nueva imagen
-          sed -i "s#^ *image: .*#        image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}#g" k8s/deployment.yaml
+          # sed -i "s#^ *image: .*#        image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}#g" k8s/deployment.yaml
+          sed -i "/- name: ${ECR_REPOSITORY}/{n;s#image: .*#image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}#}" k8s/deployment.yaml
+
 
           echo "Contenido de deployment.yaml luego del cambio:"
           cat k8s/deployment.yaml
