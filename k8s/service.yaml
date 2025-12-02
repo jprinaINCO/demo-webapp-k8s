@@ -4,7 +4,8 @@ metadata:
   name: demo-webapp
   namespace: demo-app
 spec:
-  type: LoadBalancer
+  # type: LoadBalancer
+  type: ClusterIP
   selector:
     app: demo-webapp
   ports:
