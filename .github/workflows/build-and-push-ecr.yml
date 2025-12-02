@@ -1,32 +1,39 @@
-name: Build and Push to ECR (OIDC)
+name: Build, Push to ECR and Update Manifests (OIDC)
 
 on:
   push:
     branches: ["main"]
 
-# IMPORTANTE: permisos para usar OIDC
 permissions:
-  id-token: write
+  id-token: write     # necesario para OIDC
   contents: read
 
 jobs:
-  build-and-push:
+  build-publish-update:
     runs-on: ubuntu-latest
 
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
       ECR_REPOSITORY: demo-webapp
+      MANIFESTS_REPO: TU_ORG/demo-webapp-k8s   # <-- cambialo por tu org/repo real
 
     steps:
-      - name: Checkout repository
+      - name: Checkout app repo
         uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: set-tag
+        run: |
+          SHORT_SHA=${GITHUB_SHA::8}
+          echo "IMAGE_TAG=$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -35,9 +42,45 @@ jobs:
       - name: Build, tag, and push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: latest
+          IMAGE_TAG: ${{ steps.set-tag.outputs.IMAGE_TAG }}
         run: |
+          echo "Usando tag: $IMAGE_TAG"
           echo "Registry: $ECR_REGISTRY"
+
           docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
           docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Checkout manifests repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MANIFESTS_REPO }}
+          token: ${{ secrets.MANIFESTS_REPO_PAT }}
+          path: manifests
+
+      - name: Update image tag in manifests repo
+        env:
+          IMAGE_TAG: ${{ steps.set-tag.outputs.IMAGE_TAG }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+        run: |
+          cd manifests
+
+          echo "Actualizando image tag en k8s/deployment.yaml a: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+
+          # Reemplaza la línea que empieza con 'image:' por la nueva imagen
+          sed -i "s#^ *image: .*#        image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}#g" k8s/deployment.yaml
+
+          echo "Contenido de deployment.yaml luego del cambio:"
+          cat k8s/deployment.yaml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit solo si hay cambios
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git commit -am "Update image tag to ${IMAGE_TAG}"
+            git push
+          else
+            echo "No hay cambios para commitear."
+          fi
