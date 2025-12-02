@@ -16,7 +16,7 @@ spec:
       containers:
         - name: demo-webapp
           # image: 701857162048.dkr.ecr.us-east-1.amazonaws.com/demo-webapp:latest
-        image: 701857162048.dkr.ecr.us-east-1.amazonaws.com/demo-webapp:4e5391ef
+        image: 701857162048.dkr.ecr.us-east-1.amazonaws.com/demo-webapp:6c639b4c
           ports:
             - containerPort: 5000
           readinessProbe:
