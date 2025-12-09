@@ -8,4 +8,4 @@ parameters:
   type: gp3
 reclaimPolicy: Retain
 allowVolumeExpansion: true
-volumeBindingMode: WaitForFirstConsumer
+# volumeBindingMode: WaitForFirstConsumer
