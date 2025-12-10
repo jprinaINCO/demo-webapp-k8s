@@ -4,7 +4,7 @@ metadata:
   name: postgres
   namespace: comunidad
 spec:
-  serviceName: postgres
+  serviceName: "postgres"
   replicas: 1
   selector:
     matchLabels:
@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: 701857162048.dkr.ecr.us-east-1.amazonaws.com/postgres:17
+          image: 701857162048.dkr.ecr.us-east-1.amazonaws.com/postgres:17  # Reemplaza con la imagen adecuada de ECR
           ports:
             - containerPort: 5432
           env:
@@ -38,12 +38,13 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-data
+              subPath: data  # Usar subPath para evitar que se sobreescriban los archivos previos en el volumen
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: gp3-postgres
+        storageClassName: gp3-postgres  # Asegúrate de que esta StorageClass esté configurada en tu EKS
         resources:
           requests:
-            storage: 20Gi
+            storage: 20Gi  # Tamaño del volumen de EBS (ajustar según necesidades)
